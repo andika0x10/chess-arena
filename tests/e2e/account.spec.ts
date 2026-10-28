@@ -90,10 +90,27 @@ test('account autosave recovers offline moves and stores a private review', asyn
   ]);
   const nativePage = await nativeContext.newPage();
   await nativePage.goto('http://127.0.0.1:5180/account');
-  await nativePage.getByLabel('Public name').fill('Server-rendered player');
-  await nativePage.getByRole('button', { name: 'Save name' }).click();
-  await expect(nativePage.getByText('Public name saved.')).toBeVisible();
+  await expect(nativePage.getByRole('heading', { name: 'Setting the board.' })).toBeVisible();
+  expect(await nativePage.content()).toContain(
+    'Enable JavaScript to play and open your saved games.',
+  );
+  const invalidName = await nativeContext.request.post('/account', {
+    headers: { Origin: 'http://127.0.0.1:5180' },
+    form: { name: '' },
+  });
+  expect(invalidName.status()).toBe(400);
+  expect((await invalidName.json()).error).toContain('public name');
+  expect(invalidName.headers()['cache-control']).toBe('private, no-store');
+  const nativeSave = await nativeContext.request.post('/account', {
+    headers: { Origin: 'http://127.0.0.1:5180' },
+    form: { name: 'Native form player' },
+    maxRedirects: 0,
+  });
+  expect(nativeSave.status()).toBe(303);
+  expect(nativeSave.headers()['location']).toBe('/account');
   await nativeContext.close();
+  await page.reload();
+  await expect(page.getByRole('link', { name: 'Native form player' })).toBeVisible();
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
 });

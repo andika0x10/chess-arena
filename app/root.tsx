@@ -13,7 +13,7 @@ import {
 } from 'react-router';
 import type { Route } from './+types/root';
 import { userFor } from './lib/db.server';
-import { authEnabled } from './lib/auth.server';
+import { authEnabled } from './lib/auth-config.server';
 import '@fontsource-variable/public-sans';
 import '@lichess-org/chessground/assets/chessground.base.css';
 import '@lichess-org/chessground/assets/chessground.cburnett.css';
@@ -31,6 +31,18 @@ export const meta: Route.MetaFunction = () => [
 export const links: Route.LinksFunction = () => [
   { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
 ];
+export function HydrateFallback() {
+  return (
+    <main id="main" className="page narrow" aria-busy="true">
+      <a className="brand" href="/">
+        Chess Arena.
+      </a>
+      <h1>Setting the board.</h1>
+      <p role="status">Loading your game space…</p>
+      <noscript>Enable JavaScript to play and open your saved games.</noscript>
+    </main>
+  );
+}
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">

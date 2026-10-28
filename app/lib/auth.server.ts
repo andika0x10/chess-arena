@@ -2,9 +2,7 @@ import { env } from 'cloudflare:workers';
 import { createCookie, redirect } from 'react-router';
 import * as oidc from 'openid-client';
 import { createSession, db, sessionCookie } from './db.server';
-export function authEnabled() {
-  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.SESSION_SECRET);
-}
+import { authEnabled } from './auth-config.server';
 function transactionCookie() {
   if (!authEnabled())
     throw new Response('Google sign-in has not been configured. You can still play as a guest.', {

@@ -4,6 +4,16 @@ A monochrome chess app for playing the computer and reviewing your games. Six bo
 
 Built with React Router v8, React 19, Cloudflare Workers + D1, chess.js, Chessground, and Stockfish WASM.
 
+Production serves a public static shell and fetches session/route data from the Worker.
+JavaScript is required for the interface. Personalized data and mutation responses are
+`private, no-store`; hashed assets and the versioned engine are cached independently.
+React Router is pinned because its API-only rendering mode is experimental.
+
+The build uses a separate, local prerender Worker to generate the shell. Its Node
+compatibility and build-request flag are limited to `build/prerender`; deploy the
+runtime at `build/server` using the normal deploy command. The prerender Worker is
+excluded from deployment.
+
 ## Development
 
 Requires Node.js 24+.
@@ -47,6 +57,26 @@ npx playwright install chromium
 npm run test:e2e
 npm run build
 ```
+
+Test production asset/API routing after building (PowerShell):
+
+```powershell
+$env:E2E_PREVIEW = '1'
+npm run test:e2e
+Remove-Item Env:E2E_PREVIEW
+npm run benchmark:replay
+```
+
+The replay benchmark generates legal histories through the 2,000-ply import limit
+and compares single-pass replay with repeated-prefix replay for shorter games.
+Its local elapsed timings do not establish compliance with hosted Worker CPU limits.
+Long histories can still exceed a small CPU budget.
+
+After a production rollout, use Worker observability to compare CPU percentiles
+and `exceededCpu`/memory outcomes for data loads, moves, imports, and reviews.
+Correlate recurring 1102 reports with their request path and timestamp; do not log
+session cookies, OAuth tokens, or private game payloads. Local success alone does
+not prove a production resource-limit error is resolved.
 
 ## License
 

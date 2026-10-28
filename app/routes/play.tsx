@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { Route } from './+types/play';
 import { loadGame, userFor } from '../lib/db.server';
-import { append, notation, position } from '../lib/game';
+import { append, position } from '../lib/game';
 import { Engine } from '../lib/engine';
 import { useGame } from '../lib/use-game';
 import { Board } from '../components/Board';
@@ -57,7 +57,9 @@ export default function Play({ loaderData, params }: Route.ComponentProps) {
       instance.dispose();
     };
   }, [retry]);
-  const turn = game ? position(game.moves).turn() : null;
+  const chess = useMemo(() => (game ? position(game.moves) : null), [game?.moves]);
+  const moves = useMemo(() => chess?.history() ?? [], [chess]);
+  const turn = chess?.turn() ?? null;
   useEffect(() => {
     if (
       !game ||
@@ -89,7 +91,7 @@ export default function Play({ loaderData, params }: Route.ComponentProps) {
       live = false;
     };
   }, [game?.revision, ready, conflict, engineLoaded, commit]);
-  if (!game)
+  if (!game || !chess)
     return (
       <section className="page narrow">
         <h1>{error ? 'Game unavailable.' : 'Setting the board.'}</h1>
@@ -99,8 +101,6 @@ export default function Play({ loaderData, params }: Route.ComponentProps) {
         </Link>
       </section>
     );
-  const chess = position(game.moves),
-    moves = notation(game.moves);
   const finished = game.result !== 'active';
   const result =
     game.result === 'win'

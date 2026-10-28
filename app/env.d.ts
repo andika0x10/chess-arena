@@ -4,3 +4,8 @@ declare namespace Cloudflare {
     SESSION_SECRET: string;
   }
 }
+
+declare module 'virtual:prerender-runtime' {
+  const runtime: ExportedHandler<Env>;
+  export default runtime;
+}

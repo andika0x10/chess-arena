@@ -1,5 +1,4 @@
 import {
-  data,
   Form,
   Link,
   useActionData,
@@ -9,19 +8,9 @@ import {
 } from 'react-router';
 import type { loader as rootLoader } from '../root';
 import type { Route } from './+types/account';
-import { requireUser, sameOrigin, updatePublicName } from '../lib/db.server';
-export async function action({ request }: Route.ActionArgs) {
-  sameOrigin(request);
-  const user = await requireUser(request);
-  const fields = await request.formData();
-  try {
-    await updatePublicName(user.id, fields.get('name'));
-    return { message: 'Public name saved.', error: '' };
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith('Use a public name'))
-      return data({ message: '', error: error.message }, { status: 400 });
-    throw error;
-  }
+import { accountAction } from '../lib/account-action.server';
+export function action({ request }: Route.ActionArgs) {
+  return accountAction(request);
 }
 export default function Account() {
   const { user, authEnabled } = useRouteLoaderData<typeof rootLoader>('root')!;

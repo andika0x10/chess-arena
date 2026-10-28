@@ -18,12 +18,20 @@ export type Game = {
 };
 export type Evaluation = { cp: number; mate?: number; pv: string[]; depth: number };
 export type Review = { version: string; positions: Evaluation[] };
+function applyMove(chess: Chess, move: string) {
+  if (typeof move !== 'string' || !/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move))
+    throw new Error('Invalid move');
+  // UCI moves already identify the squares. Avoid chess.js's permissive SAN
+  // parser and its candidate-notation generation for every historical move.
+  const played = chess.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
+  // chess.js ignores an extraneous promotion field on ordinary object moves.
+  if (played.lan !== move) throw new Error('Invalid move');
+}
 export function position(moves: string[]) {
   const chess = new Chess();
   for (const move of moves) {
     if (chess.isGameOver()) throw new Error('Moves after game over');
-    if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move)) throw new Error('Invalid move');
-    chess.move(move);
+    applyMove(chess, move);
   }
   return chess;
 }
@@ -52,8 +60,7 @@ export function append(game: Game, move: string): Game {
   if (game.result !== 'active') throw new Error('This game has finished');
   const chess = position(game.moves);
   if (chess.isGameOver()) throw new Error('This game has finished');
-  if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move)) throw new Error('Invalid move');
-  chess.move(move);
+  applyMove(chess, move);
   return {
     ...game,
     moves: [...game.moves, move],
@@ -63,14 +70,16 @@ export function append(game: Game, move: string): Game {
   };
 }
 export function replay(game: Game) {
-  let verified = {
+  const chess = position(game.moves);
+  const now = Date.now();
+  let verified: Game = {
     ...game,
-    moves: [] as string[],
-    result: 'active' as Game['result'],
-    revision: 0,
+    moves: [...game.moves],
+    result: resultFor(chess, game.color),
+    revision: game.moves.length,
     resigned: false,
+    updatedAt: game.moves.length ? now : game.updatedAt,
   };
-  for (const move of game.moves) verified = append(verified, move);
   if (game.resigned && verified.result === 'active')
     verified = { ...verified, result: 'loss', resigned: true, revision: verified.revision + 1 };
   return verified;

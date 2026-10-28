@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { Route } from './+types/review';
 import { loadGame, loadReview, userFor } from '../lib/db.server';
@@ -59,6 +59,12 @@ export default function ReviewPage({ loaderData, params }: Route.ComponentProps)
   const instance = useRef<Engine | null>(null),
     generation = useRef(0),
     reviewRef = useRef(review);
+  const moves = useMemo(() => (game ? notation(game.moves) : []), [game?.moves]);
+  const shown = useMemo(
+    () => [...(game?.moves.slice(0, index) ?? []), ...branch],
+    [game?.moves, index, branch],
+  );
+  const chess = useMemo(() => position(shown), [shown]);
   reviewRef.current = review;
   useEffect(() => {
     let live = true;
@@ -145,10 +151,7 @@ export default function ReviewPage({ loaderData, params }: Route.ComponentProps)
         </Link>
       </section>
     );
-  const moves = notation(game.moves),
-    shown = [...game.moves.slice(0, index), ...branch],
-    chess = position(shown),
-    evaluation = review.positions[index];
+  const evaluation = review.positions[index];
   const select = (n: number) => {
     setIndex(n);
     setBranch([]);

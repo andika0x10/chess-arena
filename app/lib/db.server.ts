@@ -35,7 +35,17 @@ export function cookie(request: Request, name: string) {
 export function sessionCookie(request: Request, token: string, age = 60 * 60 * 24 * 30) {
   return `arena_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`;
 }
-export async function userFor(request: Request): Promise<User | null> {
+// Request identities must never be shared between visitors or later requests.
+const usersForRequests = new WeakMap<Request, Promise<User | null>>();
+export function userFor(request: Request): Promise<User | null> {
+  let user = usersForRequests.get(request);
+  if (!user) {
+    user = lookupUser(request);
+    usersForRequests.set(request, user);
+  }
+  return user;
+}
+async function lookupUser(request: Request): Promise<User | null> {
   const token = cookie(request, 'arena_session');
   if (!token || !env.DB) return null;
   return db()

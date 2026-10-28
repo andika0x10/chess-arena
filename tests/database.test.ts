@@ -54,6 +54,20 @@ beforeEach(async () => {
     await env.DB.prepare('INSERT INTO users VALUES(?,?,?,?)').bind(id, id, id, Date.now()).run();
 });
 describe('D1 persistence and access control', () => {
+  it('deduplicates session lookups within a request without caching across requests', async () => {
+    const token = await createSession('alice');
+    const request = new Request('https://arena.example.com', {
+      headers: { Cookie: `arena_session=${token}` },
+    });
+    const first = userFor(request);
+    expect(userFor(request)).toBe(first);
+    expect(await first).toEqual({ id: 'alice', name: 'alice' });
+    await env.DB.prepare('UPDATE users SET name=? WHERE id=?').bind('Updated', 'alice').run();
+    const next = userFor(new Request(request));
+    expect(next).not.toBe(first);
+    expect(await next).toEqual({ id: 'alice', name: 'Updated' });
+    expect(await userFor(new Request(request.url))).toBeNull();
+  });
   it('saves moves once, rejects conflicts and enforces ownership', async () => {
     const game = newGame(2, 'w', true);
     await insertGame('alice', game);
@@ -129,7 +143,7 @@ describe('D1 persistence and access control', () => {
     expect(sessionCookie(request, token)).toContain('Secure');
     expect(sessionCookie(request, token)).toContain('HttpOnly');
     await env.DB.prepare('UPDATE sessions SET expires_at=0').run();
-    expect(await userFor(request)).toBeNull();
+    expect(await userFor(new Request(request))).toBeNull();
     await deleteSession(request);
     expect((await env.DB.prepare('SELECT * FROM sessions').all()).results).toHaveLength(0);
   });
