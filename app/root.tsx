@@ -1,28 +1,36 @@
 import {
+  Form,
   isRouteErrorResponse,
+  Link,
   Links,
   Meta,
+  NavLink,
   Outlet,
   Scripts,
   ScrollRestoration,
-} from "react-router";
-
-import type { Route } from "./+types/root";
-import "./app.css";
-
-export const links: Route.LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  useLoaderData,
+  useLocation,
+} from 'react-router';
+import type { Route } from './+types/root';
+import { userFor } from './lib/db.server';
+import { authEnabled } from './lib/auth.server';
+import '@fontsource-variable/public-sans';
+import '@lichess-org/chessground/assets/chessground.base.css';
+import '@lichess-org/chessground/assets/chessground.cburnett.css';
+import './app.css';
+export async function loader({ request }: Route.LoaderArgs) {
+  return { user: await userFor(request), authEnabled: authEnabled() };
+}
+export const meta: Route.MetaFunction = () => [
+  { title: 'Chess Arena — A little better, every game.' },
   {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    name: 'description',
+    content: 'Play the computer at your own pace. Revisit every move. Find your next good idea.',
   },
 ];
-
+export const links: Route.LinksFunction = () => [
+  { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+];
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -33,6 +41,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -40,36 +51,58 @@ export function Layout({ children }: { children: React.ReactNode }) {
     </html>
   );
 }
-
 export default function App() {
-  return <Outlet />;
-}
-
-export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
-  let stack: string | undefined;
-
-  if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
-    details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
-  } else if (import.meta.env.DEV && error && error instanceof Error) {
-    details = error.message;
-    stack = error.stack;
-  }
-
+  const { user } = useLoaderData<typeof loader>();
+  const location = useLocation();
   return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
-          <code>{stack}</code>
-        </pre>
-      )}
+    <>
+      <header className="site-header">
+        <Link to="/" className="brand" aria-label="Chess Arena home">
+          <span className="brand-mark" aria-hidden="true">
+            ♜
+          </span>
+          Chess Arena<span className="brand-period">.</span>
+        </Link>
+        <nav aria-label="Main navigation">
+          <NavLink end to="/">
+            Play
+          </NavLink>
+          <NavLink to="/leaderboard">Leaderboard</NavLink>
+          <NavLink to="/games">My games</NavLink>
+        </nav>
+        <Link className="account-link" to="/account">
+          {user ? user.name : 'Sign in'}
+          <span aria-hidden="true" className="account-dot" />
+        </Link>
+      </header>
+      <main id="main">
+        <Outlet key={location.pathname} />
+      </main>
+      <footer className="site-footer">
+        <span>Take your time. Make your move.</span>
+        <span>
+          Human vs computer <span aria-hidden="true"> / </span> <a href="/licenses">Open source</a>
+        </span>
+      </footer>
+    </>
+  );
+}
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const message = isRouteErrorResponse(error)
+    ? error.status === 404
+      ? 'This game could not be found.'
+      : String(error.data || error.statusText)
+    : 'Something interrupted this page. Reload to try again.';
+  return (
+    <main id="main" className="page narrow">
+      <Link className="brand" to="/">
+        Chess Arena.
+      </Link>
+      <h1>Let’s try that again.</h1>
+      <p>{message}</p>
+      <Link className="button" to="/">
+        Back to play
+      </Link>
     </main>
   );
 }
